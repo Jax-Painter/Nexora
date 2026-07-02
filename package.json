@@ -1,0 +1,28 @@
+{
+  "name": "nexora",
+  "version": "1.0.0",
+  "description": "Discord bot for managing ERLC servers",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jax-Painter/Nexora.git"
+  },
+  "keywords": ["discord", "bot", "erlc"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Jax-Painter/Nexora/issues"
+  },
+  "homepage": "https://github.com/Jax-Painter/Nexora#readme",
+  "dependencies": {
+    "discord.js": "^14.14.0",
+    "dotenv": "^16.3.1"
+  }
+}
+
