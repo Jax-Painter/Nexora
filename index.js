@@ -3,6 +3,15 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Validate required environment variables
+const requiredEnvVars = ['DISCORD_TOKEN', 'CLIENT_ID'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`❌ Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -14,6 +23,14 @@ const client = new Client({
 
 client.commands = new Collection();
 client.cooldowns = new Collection();
+
+// Store config in client
+client.config = {
+  prefix: process.env.PREFIX || '?',
+  logChannelId: process.env.LOG_CHANNEL_ID,
+  modRoleId: process.env.MOD_ROLE_ID,
+  adminRoleId: process.env.ADMIN_ROLE_ID,
+};
 
 // Load commands
 const commandsPath = path.join(__dirname, 'commands');
