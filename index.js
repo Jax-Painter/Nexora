@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ChannelType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -15,51 +15,68 @@ const client = new Client({
 client.commands = new Collection();
 client.cooldowns = new Collection();
 
+console.log('🤖 Nexora Bot Starting...');
+console.log('Environment loaded');
+
 // Load commands
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-  console.log(`Loading ${commandFiles.length} commands...`);
+  console.log(`📂 Found ${commandFiles.length} command files`);
   for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    if (command.data && command.execute) {
-      client.commands.set(command.data.name, command);
-      console.log(`✓ Loaded command: ${command.data.name}`);
+    try {
+      const filePath = path.join(commandsPath, file);
+      const command = require(filePath);
+      if (command.data && command.execute) {
+        client.commands.set(command.data.name, command);
+        console.log(`✓ Loaded command: ${command.data.name}`);
+      }
+    } catch (error) {
+      console.error(`✗ Error loading command ${file}:`, error);
     }
   }
 } else {
-  console.warn('⚠ Commands directory does not exist');
+  console.log('📂 Commands directory not found (this is okay, add commands later)');
 }
 
 // Load events
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
   const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-  console.log(`Loading ${eventFiles.length} events...`);
+  console.log(`📂 Found ${eventFiles.length} event files`);
   for (const file of eventFiles) {
-    const filePath = path.join(eventsPath, file);
-    const event = require(filePath);
-    if (event.once) {
-      client.once(event.name, (...args) => event.execute(...args, client));
-    } else {
-      client.on(event.name, (...args) => event.execute(...args, client));
+    try {
+      const filePath = path.join(eventsPath, file);
+      const event = require(filePath);
+      if (event.name && event.execute) {
+        if (event.once) {
+          client.once(event.name, (...args) => event.execute(...args, client));
+        } else {
+          client.on(event.name, (...args) => event.execute(...args, client));
+        }
+        console.log(`✓ Loaded event: ${event.name}`);
+      }
+    } catch (error) {
+      console.error(`✗ Error loading event ${file}:`, error);
     }
-    console.log(`✓ Loaded event: ${event.name}`);
   }
 } else {
-  console.warn('⚠ Events directory does not exist');
+  console.log('📂 Events directory not found (this is okay, add events later)');
 }
 
-// Error handling for login
+// Validate token before login
 if (!process.env.DISCORD_TOKEN) {
-  console.error('❌ DISCORD_TOKEN is not set in environment variables!');
+  console.error('❌ ERROR: DISCORD_TOKEN is not set in environment variables!');
+  console.error('Make sure to set DISCORD_TOKEN in your Railway variables');
   process.exit(1);
 }
 
-console.log('🤖 Attempting to log in to Discord...');
+console.log('🔐 DISCORD_TOKEN found in environment');
+console.log('🌐 Connecting to Discord...');
+
+// Login with error handling
 client.login(process.env.DISCORD_TOKEN).catch(error => {
-  console.error('❌ Failed to login:', error);
+  console.error('❌ Failed to login to Discord:', error.message);
   process.exit(1);
 });
 
@@ -73,7 +90,18 @@ process.on('uncaughtException', error => {
   process.exit(1);
 });
 
-// Listen for ready event if not in events folder
-client.once('ready', () => {
-  console.log(`✓ Bot is online as ${client.user.tag}`);
-});
+// Fallback ready event if not defined in events
+if (!fs.existsSync(path.join(eventsPath, 'ready.js'))) {
+  client.once('ready', () => {
+    console.log(`✓✓✓ BOT ONLINE ✓✓✓`);
+    console.log(`Logged in as: ${client.user.tag}`);
+    console.log(`Bot ID: ${client.user.id}`);
+    client.user.setPresence({
+      status: 'online',
+      activities: [{
+        name: 'ERLC Servers',
+        type: 'WATCHING'
+      }]
+    }).catch(err => console.error('Error setting presence:', err));
+  });
+}
