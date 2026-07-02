@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ChannelType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -32,13 +32,14 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+client.prefixCommands = new Collection();
 client.cooldowns = new Collection();
 
 console.log('✓ Discord.js Client created');
 console.log('✓ Intents configured');
 console.log('');
 
-// Load commands
+// Load commands (both slash and prefix)
 const commandsPath = path.join(__dirname, 'commands');
 console.log(`📂 Loading commands from: ${commandsPath}`);
 if (fs.existsSync(commandsPath)) {
@@ -48,9 +49,17 @@ if (fs.existsSync(commandsPath)) {
     try {
       const filePath = path.join(commandsPath, file);
       const command = require(filePath);
+      
+      // Slash commands
       if (command.data && command.execute) {
         client.commands.set(command.data.name, command);
-        console.log(`   ✓ Loaded: ${command.data.name}`);
+        console.log(`   ✓ Slash cmd: /${command.data.name}`);
+      }
+      
+      // Prefix commands
+      if (command.prefix && command.executePrefix) {
+        client.prefixCommands.set(command.prefix, command);
+        console.log(`   ✓ Prefix cmd: ?${command.prefix}`);
       }
     } catch (error) {
       console.error(`   ✗ Error loading ${file}:`, error.message);
@@ -107,6 +116,8 @@ client.once('ready', () => {
   console.log(`Tag: ${client.user.tag}`);
   console.log(`Bot ID: ${client.user.id}`);
   console.log(`Guilds: ${client.guilds.cache.size}`);
+  console.log(`Slash Commands: ${client.commands.size}`);
+  console.log(`Prefix Commands: ${client.prefixCommands.size}`);
   console.log('');
   
   // Set bot status
@@ -119,7 +130,7 @@ client.once('ready', () => {
   }).catch(err => console.error('Could not set presence:', err.message));
 });
 
-// Interaction handler
+// Interaction handler (Slash commands)
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   
@@ -135,6 +146,37 @@ client.on('interactionCreate', async (interaction) => {
     } else {
       await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
     }
+  }
+});
+
+// Message handler (Prefix commands with "?")
+client.on('messageCreate', async (message) => {
+  // Ignore bot messages
+  if (message.author.bot) return;
+  
+  // Check if message starts with "?"
+  if (!message.content.startsWith('?')) return;
+  
+  // Extract command name (everything after "?")
+  const args = message.content.slice(1).trim().split(/ +/);
+  const commandName = args.shift().toLowerCase();
+  
+  // Find matching prefix command
+  let command = null;
+  for (const [prefix, cmd] of client.prefixCommands) {
+    if (prefix === commandName || (cmd.aliases && cmd.aliases.includes(commandName))) {
+      command = cmd;
+      break;
+    }
+  }
+  
+  if (!command) return;
+  
+  try {
+    await command.executePrefix(message, args, client);
+  } catch (error) {
+    console.error('Error executing prefix command:', error);
+    message.reply('❌ There was an error executing this command!').catch(console.error);
   }
 });
 
